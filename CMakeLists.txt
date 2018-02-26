@@ -1,7 +1,7 @@
 #
 # Top level makefile for npas4
 #
-# Copyright 2014 John Farrier 
+# Copyright 2014-2018 John Farrier 
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

@@ -41,33 +41,54 @@
 #endif
 
 #include <cstdint>
+#include <string>
 
 namespace npas4
 {
-	///
-	/// Swap file + Physical RAM
-	///
-	NPAS4_EXPORT uint64_t GetTotalSystemRAM();	
+	NPAS4_EXPORT struct RAMReport
+	{
+		int64_t RamSystemTotal{0};
+		int64_t RamSystemAvailable{0};
+		int64_t RamSystemUsed{0};
+		int64_t RamSystemUsedByCurrentProcess{0};
+		int64_t RamPhysicalTotal{0};
+		int64_t RamPhysicalAvailable{0};
+		int64_t RamPhysicalUsed{0};
+		int64_t RamPhysicalUsedByCurrentProcess{0};
+		int64_t RamVirtualTotal{0};
+		int64_t RamVirtualAvailable{0};
+		int64_t RamVirtualUsed{0};
+		int64_t RamVirtualUsedByCurrentProcess{0};
 
-	///
-	/// Swap file + Physical RAM
-	///
-	NPAS4_EXPORT uint64_t GetTotalSystemRAMAvailable();
+		operator std::string();
+		npas4::RAMReport operator-(const npas4::RAMReport& x);
+	};
 
-	///
-	/// Swap file + Physical RAM
-	///
-	NPAS4_EXPORT uint64_t GetTotalSystemRAMUsed();
+	// ----------------------------------------------------------------
+	// Physical + Virtual Memory
 
-	NPAS4_EXPORT uint64_t GetTotalSystemRAMUsedByCurrentProcess();
+	NPAS4_EXPORT int64_t GetRAMSystemTotal();	
+	NPAS4_EXPORT int64_t GetRAMSystemAvailable();
+	NPAS4_EXPORT int64_t GetRAMSystemUsed();
+	NPAS4_EXPORT int64_t GetRAMSystemUsedByCurrentProcess();
 
-	NPAS4_EXPORT uint64_t GetTotalPhysicalRAM();
+	// ----------------------------------------------------------------
+	// Physical Memory
 
-	NPAS4_EXPORT uint64_t GetTotalPhysicalRAMAvailable();
+	NPAS4_EXPORT int64_t GetRAMPhysicalTotal();
+	NPAS4_EXPORT int64_t GetRAMPhysicalAvailable();
+	NPAS4_EXPORT int64_t GetRAMPhysicalUsed();
+	NPAS4_EXPORT int64_t GetRAMPhysicalUsedByCurrentProcess();
 
-	NPAS4_EXPORT uint64_t GetTotalPhysicalRAMUsed();
+	// ----------------------------------------------------------------
+	// Virtual Memory
 
-	NPAS4_EXPORT uint64_t GetTotalPhysicalRAMUsedByCurrentProcess();
+	NPAS4_EXPORT int64_t GetRAMVirtualTotal();
+	NPAS4_EXPORT int64_t GetRAMVirtualAvailable();
+	NPAS4_EXPORT int64_t GetRAMVirtualUsed();
+	NPAS4_EXPORT int64_t GetRAMVirtualUsedByCurrentProcess();
+
+	NPAS4_EXPORT npas4::RAMReport GetRAMReport();
 }
 
 #endif
