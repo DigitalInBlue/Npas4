@@ -22,6 +22,7 @@
 #include <gtest/gtest.h>
 
 #include <thread>
+#include <iomanip>
 
 constexpr double Gigabyte{1073741824.0};
 
@@ -55,11 +56,7 @@ TEST(npas4, AllocSystem)
 {
 	const auto startTotal = npas4::GetRAMSystemTotal();
 	EXPECT_GT(npas4::GetRAMSystemTotal(), int64_t(1024));
-
-	// const auto startAvailable = npas4::GetRAMSystemAvailable();
 	EXPECT_GT(npas4::GetRAMSystemTotal(), npas4::GetRAMSystemAvailable());
-
-	// const auto startUsed = npas4::GetRAMSystemUsed();
 	EXPECT_GT(npas4::GetRAMSystemTotal(), npas4::GetRAMSystemUsed());
 	EXPECT_GT(npas4::GetRAMSystemAvailable(), npas4::GetRAMSystemUsed());
 
@@ -81,8 +78,6 @@ TEST(npas4, AllocSystem)
 		EXPECT_LT(startUsedByCurrentProcess + allocAmmount, npas4::GetRAMSystemUsedByCurrentProcess()) << "We did an allocation, but are using less RAM. Start: " 
 			<< startUsedByCurrentProcess << ", Alloc: " << allocAmmount;
 
-		
-
 		// Assume we are not swapping out to disk
 		ASSERT_GT(npas4::GetRAMSystemUsedByCurrentProcess(), startUsedByCurrentProcess);
 
@@ -96,8 +91,6 @@ TEST(npas4, AllocSystem)
 TEST(npas4, AllocPhysical)
 {
 	const auto startTotal = npas4::GetRAMPhysicalTotal();
-	// const auto startAvailable = npas4::GetRAMPhysicalAvailable();
-	// const auto startUsed = npas4::GetRAMPhysicalUsed();
 	const auto startUsedByCurrentProcess = npas4::GetRAMPhysicalUsedByCurrentProcess();
 
 	volatile uint8_t* megabyte = nullptr;
@@ -106,18 +99,17 @@ TEST(npas4, AllocPhysical)
 	// allocation from happening before we want it to.
 	if(std::this_thread::get_id() == std::this_thread::get_id())
 	{
-		const int64_t allocAmmount = 1052672;
+		const int64_t allocAmmount = 1052672 * rand()%128;
 		megabyte = new uint8_t[allocAmmount];
 
 		EXPECT_EQ(startTotal, npas4::GetRAMPhysicalTotal());
-		// EXPECT_NE(startUsedByCurrentProcess, npas4::GetRAMPhysicalUsedByCurrentProcess());
-		// EXPECT_LT(startUsedByCurrentProcess + allocAmmount, npas4::GetRAMPhysicalUsedByCurrentProcess()) << "We did an allocation, but are using less RAM.";
+		EXPECT_LT(startUsedByCurrentProcess + allocAmmount, npas4::GetRAMSystemUsedByCurrentProcess()) << "We did an allocation, but are using less RAM.";
 
 		// Assume we are not swapping out to disk
 		ASSERT_GT(npas4::GetRAMSystemUsedByCurrentProcess(), startUsedByCurrentProcess);
 
-		// const auto memoryDelta = npas4::GetRAMSystemUsedByCurrentProcess() - startUsedByCurrentProcess;
-		// EXPECT_EQ(npas4::GetRAMPhysicalUsedByCurrentProcess() - startUsedByCurrentProcess, memoryDelta + AllocationConstant);
+		const auto memoryDelta = npas4::GetRAMSystemUsedByCurrentProcess() - startUsedByCurrentProcess;
+		EXPECT_EQ(npas4::GetRAMSystemUsedByCurrentProcess() - startUsedByCurrentProcess, memoryDelta + AllocationConstant);
 	
 		delete [] megabyte;
 	}
@@ -129,12 +121,9 @@ TEST(npas4, AllocPhysical)
 	}
 }
 
-TEST(npas4, AllocVirtual)
+TEST(npas4, AllocAll)
 {
-	const auto startTotal = npas4::GetRAMVirtualTotal();
-	// const auto startAvailable = npas4::GetRAMVirtualAvailable();
-	// const auto startUsed = npas4::GetRAMVirtualUsed();
-	// const auto startUsedByCurrentProcess = npas4::GetRAMVirtualUsedByCurrentProcess();
+	const auto start3 = npas4::GetRAMSystemUsedByCurrentProcess();
 
 	// This will always be true, but the compiler won't know that, preventing the
 	// allocation from happening before we want it to.
@@ -143,58 +132,55 @@ TEST(npas4, AllocVirtual)
 		const int64_t allocAmmount = 1052672;
 		volatile uint8_t* megabyte = new uint8_t[allocAmmount];
 
-		EXPECT_EQ(startTotal, npas4::GetRAMVirtualTotal());
-		// EXPECT_NE(startAvailable, npas4::GetRAMVirtualAvailable());
-		// EXPECT_NE(startUsed, npas4::GetRAMVirtualUsed());
-		// EXPECT_LT(startUsedByCurrentProcess + allocAmmount, npas4::GetRAMVirtualUsedByCurrentProcess()) << "We did an allocation, but are using less RAM.";
-
+		// Assume we are not swapping out to disk
+		auto memoryDelta = npas4::GetRAMSystemUsedByCurrentProcess() - start3;
+		EXPECT_NEAR(allocAmmount, memoryDelta, 4096);
+	
 		delete [] megabyte;
 	}
 }
 
-TEST(npas4, AllocAll)
+TEST(npas4, ForceAllocateVirtual)
 {
-	const auto start0 = npas4::GetRAMSystemTotal();
-	//const auto start1 = npas4::GetRAMSystemAvailable();
-	//const auto start2 = npas4::GetRAMSystemUsed();
-	const auto start3 = npas4::GetRAMSystemUsedByCurrentProcess();
+	const auto ramAvailableTotal = npas4::GetRAMSystemAvailable();
+	EXPECT_GT(ramAvailableTotal, 0);
 
-	const auto start4 = npas4::GetRAMPhysicalTotal();
-	//const auto start5 = npas4::GetRAMPhysicalAvailable();
-	//const auto start6 = npas4::GetRAMPhysicalUsed();
-	const auto start7 = npas4::GetRAMPhysicalUsedByCurrentProcess();
+	const auto ramSystemUsed = npas4::GetRAMSystemUsed();
+	EXPECT_GT(ramSystemUsed, 0);
 
-	const auto start8 = npas4::GetRAMVirtualTotal();
-	//const auto start9 = npas4::GetRAMVirtualAvailable();
-	//const auto start10 = npas4::GetRAMVirtualUsed();
-	// const auto start11 = npas4::GetRAMVirtualUsedByCurrentProcess();
+	const auto ramUsedByCurrentProcess = npas4::GetRAMSystemUsedByCurrentProcess();
+	EXPECT_GT(ramUsedByCurrentProcess, 0);
 
-	// This will always be true, but the compiler won't know that, preventing the
-	// allocation from happening before we want it to.
+	const auto ramAvailablePhysical = npas4::GetRAMPhysicalAvailable();
+	EXPECT_GT(ramAvailablePhysical, 0);
+
+	const auto ramAvailableVirtual = npas4::GetRAMVirtualAvailable();
+	EXPECT_GT(ramAvailableVirtual, 0);
+
+	const auto allocAmmountPhysical = ramAvailablePhysical;
+	const auto allocAmmountVirtual = static_cast<decltype(allocAmmountPhysical)>(static_cast<double>(ramAvailableVirtual)*0.01);
+	const auto allocAmmount = allocAmmountPhysical + allocAmmountVirtual;
+
+	EXPECT_GT(ramAvailableTotal, allocAmmount);
+	EXPECT_GT(allocAmmount, ramAvailablePhysical);
+
 	if(std::this_thread::get_id() == std::this_thread::get_id())
 	{
-		const int64_t allocAmmount = 1052672;
-		volatile uint8_t* megabyte = new uint8_t[allocAmmount];
+		std::vector<uint8_t> buffer(allocAmmount);
+		ASSERT_NO_THROW(buffer.reserve(allocAmmount));
 
-		EXPECT_EQ(start0, npas4::GetRAMSystemTotal());
-		// EXPECT_NE(start1, npas4::GetRAMSystemAvailable());
-		// EXPECT_NE(start2, npas4::GetRAMSystemUsed());
-		// EXPECT_LT(start3 + allocAmmount, npas4::GetRAMSystemUsedByCurrentProcess()) << "We did an allocation, but are using less RAM.";
+		// We should be using more RAM across the board now.
+		EXPECT_GT(npas4::GetRAMSystemUsed(), ramSystemUsed);
+		EXPECT_GT(npas4::GetRAMSystemUsedByCurrentProcess(), ramUsedByCurrentProcess);
 
-		EXPECT_EQ(start4, npas4::GetRAMPhysicalTotal());
-		//EXPECT_NE(start5, npas4::GetRAMPhysicalAvailable());
-		//EXPECT_NE(start6, npas4::GetRAMPhysicalUsed());
-		//EXPECT_LT(start7 + allocAmmount, npas4::GetRAMPhysicalUsedByCurrentProcess()) << "We did an allocation, but are using less RAM.";
+		EXPECT_LT(npas4::GetRAMSystemAvailable(), ramAvailableTotal);
+		EXPECT_LT(npas4::GetRAMPhysicalAvailable(), ramAvailablePhysical);
+		EXPECT_LT(npas4::GetRAMVirtualAvailable(), ramAvailableVirtual);
 
-		EXPECT_EQ(start8, npas4::GetRAMVirtualTotal());
-		// EXPECT_NE(start9, npas4::GetRAMVirtualAvailable());
-		// EXPECT_NE(start10, npas4::GetRAMVirtualUsed());
-		// EXPECT_LT(start11 + allocAmmount, npas4::GetRAMVirtualUsedByCurrentProcess()) << "We did an allocation, but are using less RAM.";
-
-		// Assume we are not swapping out to disk
-		auto memoryDelta = npas4::GetRAMSystemUsedByCurrentProcess() - start3;
-		EXPECT_EQ(npas4::GetRAMPhysicalUsedByCurrentProcess() - start7, memoryDelta + AllocationConstant);
-	
-		delete [] megabyte;
+		EXPECT_GT(npas4::GetRAMSystemUsedByCurrentProcess(), allocAmmount);
+		EXPECT_GT(npas4::GetRAMPhysicalUsedByCurrentProcess(), allocAmmountPhysical);
+		EXPECT_GT(npas4::GetRAMVirtualUsedByCurrentProcess(), allocAmmountVirtual) << std::setprecision(4)
+			<< "Alloc Ammount: " << allocAmmountVirtual/Gigabyte << " GB, Used: " 
+			<< npas4::GetRAMVirtualUsedByCurrentProcess()/Gigabyte << " GB.";
 	}
 }

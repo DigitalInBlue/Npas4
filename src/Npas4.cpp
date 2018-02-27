@@ -40,7 +40,7 @@ namespace npas4
 	{
 		int ParseLine(char* line)
 		{
-			auto i = strlen(line);
+			const auto i = strlen(line);
 			
 			while(*line < '0' || *line > '9') 
 			{
@@ -48,8 +48,7 @@ namespace npas4
 			}
 
 			line[i-3] = '\0';
-			i = atoi(line);
-			return i;
+			return atoi(line);
 		};
 	}
 }
@@ -247,8 +246,7 @@ int64_t npas4::GetRAMPhysicalUsedByCurrentProcess()
 		{
 			if(strncmp(line, "VmRSS:", 6) == 0)
 			{
-				result = npas4::impl::ParseLine(line);
-				break;
+				result += npas4::impl::ParseLine(line);
 			}
 		}
 

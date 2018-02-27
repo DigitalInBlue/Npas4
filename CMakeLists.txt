@@ -157,16 +157,11 @@ include_directories(${HEADER_PATH})
 # --------------------------------------------------------------------------- 
 
 if(NPAS4_ENABLE_TESTS)
-	set(PROJECT_NAME npas4Test)
+	set(PROJECT_NAME TestNpas4)
 
 	add_executable(${PROJECT_NAME} 
 		test/npas4/Npas4.test.cpp
 		)
-
-	# VS2012 doesn't support true variadic templates
-	if(MSVC) 
-		add_definitions( /D _VARIADIC_MAX=10 )
-	endif()
 
 	SET(HEADER_PATH ${npas4_SOURCE_DIR}/include)
 	include_directories(${HEADER_PATH})
