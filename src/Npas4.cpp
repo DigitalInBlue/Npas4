@@ -49,7 +49,7 @@ namespace npas4
 
 			line[i-3] = '\0';
 			return atoi(line);
-		};
+		}
 	}
 }
 #endif
