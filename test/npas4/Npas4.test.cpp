@@ -76,7 +76,7 @@ TEST(npas4, AllocSystem)
 		ASSERT_GT(npas4::GetRAMSystemUsedByCurrentProcess(), startUsedByCurrentProcess);
 
 		const auto memoryDelta = npas4::GetRAMSystemUsedByCurrentProcess() - startUsedByCurrentProcess;
-		EXPECT_NEAR(npas4::GetRAMSystemUsedByCurrentProcess() - startUsedByCurrentProcess, memoryDelta, 64) << "Memory Delta: " << memoryDelta;
+		EXPECT_NEAR(npas4::GetRAMSystemUsedByCurrentProcess() - startUsedByCurrentProcess, memoryDelta, 4096) << "Memory Delta: " << memoryDelta;
 
 		delete[] megabyte;
 	}
@@ -112,7 +112,7 @@ TEST(npas4, AllocPhysical)
 		ASSERT_GT(npas4::GetRAMPhysicalUsedByCurrentProcess(), startUsedByCurrentProcess);
 
 		const auto memoryDelta = npas4::GetRAMPhysicalUsedByCurrentProcess() - startUsedByCurrentProcess;
-		EXPECT_NEAR(npas4::GetRAMPhysicalUsedByCurrentProcess() - startUsedByCurrentProcess, memoryDelta, 64) << "Memory Delta: " << memoryDelta;
+		EXPECT_NEAR(npas4::GetRAMPhysicalUsedByCurrentProcess() - startUsedByCurrentProcess, memoryDelta, 4096) << "Memory Delta: " << memoryDelta;
 
 		delete[] megabyte;
 	}
@@ -131,10 +131,33 @@ TEST(npas4, AllocAll)
 
 		// Assume we are not swapping out to disk
 		auto memoryDelta = npas4::GetRAMSystemUsedByCurrentProcess() - start3;
-		EXPECT_NEAR(allocAmmount, memoryDelta, 4096);
+		EXPECT_NEAR(allocAmmount, memoryDelta, 4096 * 2);
 
 		delete[] megabyte;
 	}
+}
+
+TEST(npas4, AllocPeak)
+{
+	const auto startPeak = npas4::GetRAMPhysicalUsedByCurrentProcessPeak();
+	const auto start3 = npas4::GetRAMSystemUsedByCurrentProcess();
+
+	// This will always be true, but the compiler won't know that, preventing the
+	// allocation from happening before we want it to.
+	if(std::this_thread::get_id() == std::this_thread::get_id())
+	{
+		const int64_t allocAmmount = 1052672;
+		volatile uint8_t* megabyte = new uint8_t[allocAmmount];
+
+		// Assume we are not swapping out to disk
+		auto memoryDelta = npas4::GetRAMSystemUsedByCurrentProcess() - start3;
+		EXPECT_NEAR(allocAmmount, memoryDelta, 4096 * 2);
+		EXPECT_GT(npas4::GetRAMPhysicalUsedByCurrentProcessPeak(), startPeak + allocAmmount);
+
+		delete[] megabyte;
+	}
+
+	EXPECT_LT(startPeak, npas4::GetRAMPhysicalUsedByCurrentProcessPeak());
 }
 
 TEST(npas4, ForceAllocateVirtual)
