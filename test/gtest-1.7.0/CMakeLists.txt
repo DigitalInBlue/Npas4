@@ -1,6 +1,7 @@
 # JEF # VS2012 doesn't support true variadic templates
 if(MSVC) 
   add_definitions( /D _VARIADIC_MAX=10 )
+  add_definitions( /D _SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING )
 endif()
 
 ########################################################################

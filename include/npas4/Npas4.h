@@ -6,14 +6,14 @@
 ///
 /// \author	John Farrier
 ///
-/// \copyright Copyright 2014-2018 John Farrier 
+/// \copyright Copyright 2014-2018 John Farrier
 ///
 /// Licensed under the Apache License, Version 2.0 (the "License");
 /// you may not use this file except in compliance with the License.
 /// You may obtain a copy of the License at
-/// 
+///
 /// http://www.apache.org/licenses/LICENSE-2.0
-/// 
+///
 /// Unless required by applicable law or agreed to in writing, software
 /// distributed under the License is distributed on an "AS IS" BASIS,
 /// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,17 +27,18 @@
 ///
 
 #ifdef NPAS4_STATIC
-	#define NPAS4_EXPORT
+#define NPAS4_EXPORT
 #else
-	#ifdef WIN32
-		#if defined NPAS4_EXPORTS
-			#define NPAS4_EXPORT _declspec(dllexport)
-		#else
-			#define NPAS4_EXPORT _declspec(dllimport)
-		#endif
-	#else
-		#define NPAS4_EXPORT
-	#endif
+#ifdef WIN32
+#include <Windows.h>
+#if defined NPAS4_EXPORTS
+#define NPAS4_EXPORT _declspec(dllexport)
+#else
+#define NPAS4_EXPORT _declspec(dllimport)
+#endif
+#else
+#define NPAS4_EXPORT
+#endif
 #endif
 
 #include <cstdint>
@@ -45,7 +46,7 @@
 
 namespace npas4
 {
-	NPAS4_EXPORT struct RAMReport
+	struct RAMReport
 	{
 		int64_t RamSystemTotal{0};
 		int64_t RamSystemAvailable{0};
@@ -67,7 +68,7 @@ namespace npas4
 	// ----------------------------------------------------------------
 	// Physical + Virtual Memory
 
-	NPAS4_EXPORT int64_t GetRAMSystemTotal();	
+	NPAS4_EXPORT int64_t GetRAMSystemTotal();
 	NPAS4_EXPORT int64_t GetRAMSystemAvailable();
 	NPAS4_EXPORT int64_t GetRAMSystemUsed();
 	NPAS4_EXPORT int64_t GetRAMSystemUsedByCurrentProcess();
@@ -89,6 +90,6 @@ namespace npas4
 	NPAS4_EXPORT int64_t GetRAMVirtualUsedByCurrentProcess();
 
 	NPAS4_EXPORT npas4::RAMReport GetRAMReport();
-}
+} // namespace npas4
 
 #endif

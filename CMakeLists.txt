@@ -73,7 +73,7 @@ if(MSVC)
   set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "Compiler Flags for Release Builds" FORCE) 
 
   add_definitions("/D_CRT_SECURE_NO_WARNINGS /wd4251 /nologo")
-endif() 
+endif()
  
 if(BORLAND) 
   set(CMAKE_CXX_FLAGS "" CACHE STRING "Compiler Flags for All Builds" FORCE) 
