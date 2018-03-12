@@ -26,8 +26,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/resource.h>
 #include <sys/sysinfo.h>
+#include <sys/time.h>
 #include <sys/types.h>
+#include <unistd.h>
 #endif
 
 ///
@@ -116,16 +119,12 @@ int64_t npas4::GetRAMSystemTotal()
 #else
 	// Prefer sysctl() over sysconf() except sysctl() HW_REALMEM and HW_PHYSMEM
 	// return static_cast<int64_t>(sysconf(_SC_PHYS_PAGES)) * static_cast<int64_t>(sysconf(_SC_PAGE_SIZE));
-
 	struct sysinfo memInfo;
 	sysinfo(&memInfo);
 	int64_t total = memInfo.totalram;
-
-	// Add other values in next statement to avoid int overflow on right hand side...
 	total += memInfo.totalswap;
 	total += memInfo.totalhigh;
-	total *= memInfo.mem_unit;
-	return static_cast<int64_t>(total);
+	return total * static_cast<int64_t>(memInfo.mem_unit);
 #endif
 }
 
@@ -151,9 +150,7 @@ int64_t npas4::GetRAMSystemUsed()
 	int64_t total = memInfo.totalram - memInfo.freeram;
 	total += memInfo.totalswap - memInfo.freeswap;
 	total += memInfo.totalhigh - memInfo.freehigh;
-	total *= memInfo.mem_unit;
-
-	return static_cast<int64_t>(total);
+	return total * static_cast<int64_t>(memInfo.mem_unit);
 #endif
 }
 
@@ -174,25 +171,7 @@ int64_t npas4::GetRAMSystemUsedByCurrentProcess()
 
 	return int64_t(-1);
 #else
-	int64_t rss{-1};
-	FILE* fp = nullptr;
-
-	if((fp = fopen("/proc/self/statm", "r")) != nullptr)
-	{
-		const auto fscanfResult = fscanf(fp, "%*s%ld", &rss);
-		fclose(fp);
-
-		if(fscanfResult == 1)
-		{
-			rss *= static_cast<int64_t>(sysconf(_SC_PAGESIZE));
-		}
-		else
-		{
-			rss = -1;
-		}
-	}
-
-	return rss;
+	return npas4::GetRAMPhysicalUsedByCurrentProcess() + npas4::GetRAMVirtualUsedByCurrentProcess();
 #endif
 }
 
@@ -206,10 +185,7 @@ int64_t npas4::GetRAMPhysicalTotal()
 #else
 	struct sysinfo memInfo;
 	sysinfo(&memInfo);
-
-	int64_t total = memInfo.totalram;
-	total *= memInfo.mem_unit;
-	return total;
+	return memInfo.totalram * memInfo.mem_unit;
 #endif
 }
 
@@ -232,12 +208,7 @@ int64_t npas4::GetRAMPhysicalUsed()
 #else
 	struct sysinfo memInfo;
 	sysinfo(&memInfo);
-
-	int64_t total = memInfo.totalram - memInfo.freeram;
-
-	// Multiply in next statement to avoid int overflow on right hand side...
-	total *= memInfo.mem_unit;
-	return total;
+	return  (static_cast<int64_t>(memInfo.totalram) - static_cast<int64_t>(memInfo.freeram)) * static_cast<int64_t>(memInfo.mem_unit);
 #endif
 }
 
@@ -249,20 +220,20 @@ int64_t npas4::GetRAMPhysicalUsedByCurrentProcess()
 	return static_cast<int64_t>(pmc.WorkingSetSize);
 #else
 	constexpr int BufferSize{128};
-	auto file = fopen("/proc/self/status", "r");
 	int64_t result = 0;
+	auto file = fopen("/proc/self/status", "r");
 	char line[BufferSize];
 
 	while(fgets(line, BufferSize, file) != nullptr)
 	{
 		if(strncmp(line, "VmRSS:", 6) == 0)
 		{
-			result += npas4::impl::ParseLine(line);
+			result += npas4::impl::ParseLine(line) * Kilobytes2Bytes;
 		}
 	}
 
 	fclose(file);
-	return static_cast<int64_t>(result) * Kilobytes2Bytes;
+	return static_cast<int64_t>(result);
 #endif
 }
 
@@ -277,9 +248,21 @@ int64_t npas4::GetRAMPhysicalUsedByCurrentProcessPeak()
 	getrusage(RUSAGE_SELF, &rusage);
 	return static_cast<int64_t>(rusage.ru_maxrss);
 #else
-	struct rusage rusage;
-	getrusage(RUSAGE_SELF, &rusage);
-	return static_cast<int64_t>(rusage.ru_maxrss * 1024L);
+	constexpr int BufferSize{128};
+	int64_t result = 0;
+	auto file = fopen("/proc/self/status", "r");
+	char line[BufferSize];
+
+	while(fgets(line, BufferSize, file) != nullptr)
+	{
+		if(strncmp(line, "VmHWM:", 6) == 0)
+		{
+			result += npas4::impl::ParseLine(line) * Kilobytes2Bytes;
+		}
+	}
+
+	fclose(file);
+	return static_cast<int64_t>(result);
 #endif
 }
 
@@ -293,14 +276,7 @@ int64_t npas4::GetRAMVirtualTotal()
 #else
 	struct sysinfo memInfo;
 	sysinfo(&memInfo);
-
-	auto totalVirtualMem = memInfo.totalram;
-
-	// Add other values in next statement to avoid int overflow on right hand side...
-	totalVirtualMem += memInfo.totalswap;
-	totalVirtualMem *= memInfo.mem_unit;
-
-	return totalVirtualMem;
+	return static_cast<int64_t>(memInfo.totalswap) * static_cast<int64_t>(memInfo.mem_unit);
 #endif
 }
 
@@ -323,14 +299,8 @@ int64_t npas4::GetRAMVirtualUsed()
 #else
 	struct sysinfo memInfo;
 	sysinfo(&memInfo);
-
-	auto virtualMemUsed = memInfo.totalram - memInfo.freeram;
-
-	// Add other values in next statement to avoid int overflow on right hand side...
-	virtualMemUsed += memInfo.totalswap - memInfo.freeswap;
-	virtualMemUsed *= memInfo.mem_unit;
-
-	return virtualMemUsed;
+	const int64_t total = memInfo.totalswap - memInfo.freeswap;
+	return total * static_cast<int64_t>(memInfo.mem_unit);
 #endif
 }
 
@@ -341,16 +311,17 @@ int64_t npas4::GetRAMVirtualUsedByCurrentProcess()
 	GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PPROCESS_MEMORY_COUNTERS>(&pmc), sizeof(pmc));
 	return pmc.PrivateUsage;
 #else
-	FILE* file = fopen("/proc/self/status", "r");
-	int64_t result = 0;
+	// Verified Correct.
 	constexpr int BufferSize{128};
+	int64_t result = 0;
+	FILE* file = fopen("/proc/self/status", "r");
 	char line[BufferSize];
 
 	while(fgets(line, BufferSize, file) != NULL)
 	{
 		if(strncmp(line, "VmSize:", 7) == 0)
 		{
-			result = npas4::impl::ParseLine(line);
+			result = npas4::impl::ParseLine(line) * Kilobytes2Bytes;
 			break;
 		}
 	}

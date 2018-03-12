@@ -20,11 +20,15 @@
 
 #include <gtest/gtest.h>
 #include <npas4/Npas4.h>
-
 #include <iomanip>
-#include <thread>
+#include <chrono>
 
 constexpr double Gigabyte{1073741824.0};
+
+void PrintTop()
+{
+	std::cout <<  npas4::GetRAMVirtualUsedByCurrentProcess() << " " << npas4::GetRAMPhysicalUsedByCurrentProcess() << " " << npas4::GetRAMSystemUsedByCurrentProcess() << "\n";
+}
 
 TEST(npas4, Report)
 {
@@ -61,13 +65,13 @@ TEST(npas4, AllocSystem)
 
 	// This will always be true, but the compiler won't know that, preventing the
 	// allocation from happening before we want it to.
-	if(std::this_thread::get_id() == std::this_thread::get_id())
+	if(std::chrono::system_clock::now() == std::chrono::time_point<std::chrono::system_clock>())
 	{
 		const int64_t allocAmmount = 1052672;
 		volatile uint8_t* megabyte = new uint8_t[allocAmmount];
 
 		EXPECT_EQ(startTotal, npas4::GetRAMSystemTotal());
-		EXPECT_NE(startUsedByCurrentProcess, npas4::GetRAMSystemUsedByCurrentProcess());
+		EXPECT_NE(startUsedByCurrentProcess, npas4::GetRAMSystemUsedByCurrentProcess()) << "We did an allocation, but are using exactly the same amount of RAM.";
 
 		EXPECT_LT(startUsedByCurrentProcess + allocAmmount, npas4::GetRAMSystemUsedByCurrentProcess())
 			<< "We did an allocation, but are using less RAM. Start: " << startUsedByCurrentProcess << ", Alloc: " << allocAmmount;
@@ -97,7 +101,7 @@ TEST(npas4, AllocPhysical)
 
 	// This will always be true, but the compiler won't know that, preventing the
 	// allocation from happening before we want it to.
-	if(std::this_thread::get_id() == std::this_thread::get_id())
+	if(std::chrono::system_clock::now() == std::chrono::time_point<std::chrono::system_clock>())
 	{
 		const int64_t allocAmmount = 1052672;
 		volatile uint8_t* megabyte = new uint8_t[allocAmmount];
@@ -113,26 +117,24 @@ TEST(npas4, AllocPhysical)
 
 		const auto memoryDelta = npas4::GetRAMPhysicalUsedByCurrentProcess() - startUsedByCurrentProcess;
 		EXPECT_NEAR(npas4::GetRAMPhysicalUsedByCurrentProcess() - startUsedByCurrentProcess, memoryDelta, 4096) << "Memory Delta: " << memoryDelta;
-
 		delete[] megabyte;
 	}
 }
 
 TEST(npas4, AllocAll)
 {
-	const auto start3 = npas4::GetRAMSystemUsedByCurrentProcess();
+	const auto startCurrentProcess = npas4::GetRAMSystemUsedByCurrentProcess() + npas4::GetRAMVirtualUsedByCurrentProcess();
 
 	// This will always be true, but the compiler won't know that, preventing the
 	// allocation from happening before we want it to.
-	if(std::this_thread::get_id() == std::this_thread::get_id())
+	if(std::chrono::system_clock::now() == std::chrono::time_point<std::chrono::system_clock>())
 	{
 		const int64_t allocAmmount = 1052672;
 		volatile uint8_t* megabyte = new uint8_t[allocAmmount];
 
 		// Assume we are not swapping out to disk
-		auto memoryDelta = npas4::GetRAMSystemUsedByCurrentProcess() - start3;
-		EXPECT_NEAR(allocAmmount, memoryDelta, 4096 * 2);
-
+		auto memoryDelta = npas4::GetRAMSystemUsedByCurrentProcess()  + npas4::GetRAMVirtualUsedByCurrentProcess() - startCurrentProcess;
+		EXPECT_NEAR(allocAmmount, memoryDelta, 4096);
 		delete[] megabyte;
 	}
 }
@@ -140,24 +142,25 @@ TEST(npas4, AllocAll)
 TEST(npas4, AllocPeak)
 {
 	const auto startPeak = npas4::GetRAMPhysicalUsedByCurrentProcessPeak();
-	const auto start3 = npas4::GetRAMSystemUsedByCurrentProcess();
+	const auto startCurrentProcess = npas4::GetRAMSystemUsedByCurrentProcess() + npas4::GetRAMVirtualUsedByCurrentProcess();
 
 	// This will always be true, but the compiler won't know that, preventing the
 	// allocation from happening before we want it to.
-	if(std::this_thread::get_id() == std::this_thread::get_id())
+	if(std::chrono::system_clock::now() == std::chrono::time_point<std::chrono::system_clock>())
 	{
-		const int64_t allocAmmount = 1052672;
+		// Allocate a large amount than the other tests would have up to this point.
+		const int64_t allocAmmount = 1052672 * 2;
 		volatile uint8_t* megabyte = new uint8_t[allocAmmount];
 
 		// Assume we are not swapping out to disk
-		auto memoryDelta = npas4::GetRAMSystemUsedByCurrentProcess() - start3;
-		EXPECT_NEAR(allocAmmount, memoryDelta, 4096 * 2);
+		auto memoryDelta = npas4::GetRAMSystemUsedByCurrentProcess() + npas4::GetRAMVirtualUsedByCurrentProcess() - startCurrentProcess;
+		EXPECT_NEAR(allocAmmount, memoryDelta, 4096);
 		EXPECT_GT(npas4::GetRAMPhysicalUsedByCurrentProcessPeak(), startPeak + allocAmmount);
 
 		delete[] megabyte;
 	}
 
-	EXPECT_LT(startPeak, npas4::GetRAMPhysicalUsedByCurrentProcessPeak());
+	EXPECT_LE(startPeak, npas4::GetRAMPhysicalUsedByCurrentProcessPeak());
 }
 
 TEST(npas4, ForceAllocateVirtual)
@@ -184,7 +187,7 @@ TEST(npas4, ForceAllocateVirtual)
 	EXPECT_GT(ramAvailableTotal, allocAmmount);
 	EXPECT_GT(allocAmmount, ramAvailablePhysical);
 
-	if(std::this_thread::get_id() == std::this_thread::get_id())
+	if(std::chrono::system_clock::now() == std::chrono::time_point<std::chrono::system_clock>())
 	{
 		volatile uint8_t* buffer = new uint8_t[allocAmmount];
 
